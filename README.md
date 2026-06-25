@@ -4,7 +4,7 @@ A mini Datadog/Grafana clone — real metrics ingestion, ML anomaly detection, R
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 monitoring-platform/
@@ -35,7 +35,28 @@ monitoring-platform/
 
 ---
 
-## 🚀 Quick Start (Local — 5 minutes)
+## Features
+- Real-time metric ingestion from 100–1000 servers
+- ML-based anomaly detection using Isolation Forest
+- Redis caching for low-latency dashboards
+- Prometheus + Grafana monitoring
+- Dockerized microservices architecture
+
+---
+
+
+## Tech Stack
+- Backend: Python, FastAPI
+- Database: MySQL
+- Cache: Redis
+- ML: Scikit-learn
+- Monitoring: Prometheus, Grafana
+- Deployment: Docker, AWS EC2, Nginx
+
+---
+
+
+## Quick Start 
 
 ### Prerequisites
 - Docker + Docker Compose installed
@@ -68,7 +89,7 @@ Wait ~60-90 seconds for all services to become healthy.
 
 ---
 
-## ☁️ AWS EC2 Deployment (Production)
+## AWS EC2 Deployment (Production)
 
 ### Step 1 — Launch an EC2 instance
 - **Instance type:** t3.medium (2 vCPU, 4 GB) or larger
@@ -113,7 +134,7 @@ docker compose up -d --build
 
 ---
 
-## 🔧 Configuration
+## Configuration
 
 ### Scale the producer (more simulated servers)
 Edit `producer/main.py`:
@@ -137,7 +158,7 @@ if m.cpu_usage > 80:    s += 0.4   # adjust thresholds here
 
 ---
 
-## 📊 Architecture
+## Architecture
 
 ```
 [Producers x100-1000]
@@ -163,7 +184,7 @@ if m.cpu_usage > 80:    s += 0.4   # adjust thresholds here
 
 ---
 
-## 🧠 ML Pipeline
+## ML Pipeline
 
 1. **Warm-up phase** (first 500 samples): rule-based scoring
 2. **Training**: Isolation Forest trains on 500+ samples in background thread
@@ -177,7 +198,7 @@ Model auto-retrains every 5,000 new samples. Saved to `/models/` volume.
 
 ---
 
-## 🗄️ Database Schema
+## Database Schema
 
 ```sql
 servers  (id, region, service, first_seen, last_seen)
@@ -188,7 +209,7 @@ alerts   (id, server_id, timestamp, severity, message, acknowledged)
 
 ---
 
-## 🔑 Redis Keys
+## Redis Keys
 
 | Key pattern | TTL | Contains |
 |-------------|-----|----------|
@@ -198,7 +219,7 @@ alerts   (id, server_id, timestamp, severity, message, acknowledged)
 
 ---
 
-## 📈 Prometheus Metrics Exposed
+## Prometheus Metrics Exposed
 
 | Metric | Type | Description |
 |--------|------|-------------|
@@ -208,72 +229,3 @@ alerts   (id, server_id, timestamp, severity, message, acknowledged)
 | `cache_hits_total` | Counter | Redis cache hits |
 | `cache_misses_total` | Counter | Redis cache misses |
 | `active_servers` | Gauge | Servers active in last 10 min |
-
----
-
-## 🛠️ Common Commands
-
-```bash
-# View logs from all services
-docker compose logs -f
-
-# View only API gateway logs
-docker compose logs -f api-gateway
-
-# Stop everything
-docker compose down
-
-# Stop and delete all data (fresh start)
-docker compose down -v
-
-# Rebuild a single service after code change
-docker compose up -d --build api-gateway
-
-# MySQL shell
-docker exec -it monitor-mysql mysql -umonitor -pmonitor123 monitoring
-
-# Redis CLI
-docker exec -it monitor-redis redis-cli
-
-# Check ML model status
-curl http://localhost:8001/model/stats
-```
-
----
-
-## 🐛 Troubleshooting
-
-**Dashboard shows no data?**
-→ Wait 30-60s for producer to send first batches. Reload the page.
-
-**ML service slow to respond?**
-→ Normal for first 500 samples (using rule-based fallback). After that, Isolation Forest takes over.
-
-**MySQL connection refused?**
-→ MySQL takes 20-30s to initialize. API gateway retries automatically. Check: `docker compose logs mysql`
-
-**Port 80 already in use?**
-→ Edit `docker-compose.yml` and change `"80:80"` to `"8080:80"`. Access via http://localhost:8080
-
----
-
-## 📝 Resume Bullet Points (proven by this code)
-
-```
-Scalable AI Monitoring Platform | Python, FastAPI, Redis, MySQL, Prometheus, Grafana, Docker
-
-• Designed cloud-native distributed monitoring platform ingesting 50K+ metrics/hour
-  from simulated infrastructure nodes across 4 regions.
-
-• Implemented Redis caching layer with 10-minute TTL and LRU eviction,
-  reducing dashboard query latency by ~70%.
-
-• Built ML anomaly detection pipeline using scikit-learn Isolation Forest
-  with online retraining; auto-classifies metrics as Normal/Warning/Critical.
-
-• Exposed Prometheus metrics and pre-built Grafana dashboards tracking
-  API latency (p50/p95), cache hit ratio, and anomaly detection rates.
-
-• Containerized all 7 services with Docker Compose and deployed behind
-  Nginx reverse proxy with per-IP rate limiting (100 req/s).
-```
