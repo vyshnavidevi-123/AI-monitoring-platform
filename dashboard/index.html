@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>AI Monitoring Platform</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #0a0e1a;
+      --surface: #111827;
+      --surface2: #1a2235;
+      --border: #1f2d45;
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --accent: #3b82f6;
+      --green: #22c55e;
+      --yellow: #eab308;
+      --red: #ef4444;
+      --purple: #a855f7;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: 'Inter', 'Segoe UI', sans-serif; min-height: 100vh; }
+
+    /* ── Top Bar ── */
+    header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 12px 24px; display: flex; align-items: center; justify-content: space-between; }
+    .logo  { font-size: 1.15rem; font-weight: 700; letter-spacing: -0.3px; }
+    .logo span { color: var(--accent); }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); display: inline-block; margin-right: 6px; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:.4; } }
+
+    /* ── Layout ── */
+    main { padding: 20px 24px; max-width: 1600px; margin: 0 auto; }
+
+    /* ── KPI strip ── */
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; }
+    .kpi-label { font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 8px; }
+    .kpi-value { font-size: 2rem; font-weight: 700; line-height: 1; }
+    .kpi-sub   { font-size: .75rem; color: var(--muted); margin-top: 6px; }
+    .kpi.warn  { border-color: var(--yellow); }
+    .kpi.crit  { border-color: var(--red); }
+
+    /* ── Charts row ── */
+    .charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; }
+    .card h3 { font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 14px; }
+    .canvas-wrap { height: 200px; }
+
+    /* ── Servers table ── */
+    .table-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; margin-bottom: 24px; }
+    .table-card h3 { font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 14px; }
+    table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+    th { padding: 8px 12px; text-align: left; font-size: .7rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); border-bottom: 1px solid var(--border); }
+    td { padding: 9px 12px; border-bottom: 1px solid #161f30; white-space: nowrap; }
+    tr:hover td { background: var(--surface2); }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: .7rem; font-weight: 600; }
+    .badge.normal   { background: #14532d22; color: var(--green); border: 1px solid #14532d66; }
+    .badge.warning  { background: #713f1222; color: var(--yellow); border: 1px solid #713f1266; }
+    .badge.critical { background: #7f1d1d22; color: var(--red); border: 1px solid #7f1d1d66; }
+
+    /* ── Alerts panel ── */
+    .alerts-list { display: flex; flex-direction: column; gap: 8px; max-height: 320px; overflow-y: auto; }
+    .alert-item { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; font-size: .8rem; display: flex; align-items: flex-start; gap: 10px; }
+    .alert-item.critical { border-left: 3px solid var(--red); }
+    .alert-item.warning  { border-left: 3px solid var(--yellow); }
+    .alert-srv  { font-weight: 600; color: var(--accent); margin-bottom: 2px; }
+    .alert-msg  { color: var(--muted); }
+    .alert-time { font-size: .7rem; color: var(--muted); margin-left: auto; }
+
+    /* ── Bottom row ── */
+    .bottom-row { display: grid; grid-template-columns: 1fr 380px; gap: 16px; }
+
+    /* ── Bar ── */
+    .bar-wrap { height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 4px; transition: width .4s; }
+    .bar-fill.cpu  { background: var(--accent); }
+    .bar-fill.mem  { background: var(--purple); }
+    .bar-fill.crit { background: var(--red); }
+    .bar-fill.warn { background: var(--yellow); }
+
+    /* ── Refresh ── */
+    .refresh-info { font-size: .72rem; color: var(--muted); margin-left: 12px; }
+  </style>
+</head>
+<body>
+<header>
+  <div class="logo">AI <span>Monitor</span></div>
+  <div style="display:flex;align-items:center;gap:16px">
+    <span><span class="status-dot"></span><span id="conn-status">Connecting…</span></span>
+    <span class="refresh-info">Auto-refresh 5s</span>
+  </div>
+</header>
+
+<main>
+  <!-- KPI strip -->
+  <div class="kpi-grid">
+    <div class="kpi">
+      <div class="kpi-label">Active Servers</div>
+      <div class="kpi-value" id="kpi-active">—</div>
+      <div class="kpi-sub">last 10 min</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Avg CPU</div>
+      <div class="kpi-value" id="kpi-cpu">—</div>
+      <div class="kpi-sub" id="kpi-cpu-sub">%</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Avg Latency</div>
+      <div class="kpi-value" id="kpi-lat">—</div>
+      <div class="kpi-sub">ms</div>
+    </div>
+    <div class="kpi warn">
+      <div class="kpi-label">⚠ Warnings</div>
+      <div class="kpi-value" style="color:var(--yellow)" id="kpi-warn">—</div>
+      <div class="kpi-sub">last 5 min</div>
+    </div>
+    <div class="kpi crit">
+      <div class="kpi-label">🔴 Critical</div>
+      <div class="kpi-value" style="color:var(--red)" id="kpi-crit">—</div>
+      <div class="kpi-sub">last 5 min</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Avg Mem</div>
+      <div class="kpi-value" style="color:var(--purple)" id="kpi-mem">—</div>
+      <div class="kpi-sub">%</div>
+    </div>
+  </div>
+
+  <!-- Charts -->
+  <div class="charts-row">
+    <div class="card">
+      <h3>CPU Usage – Last 20 snapshots</h3>
+      <div class="canvas-wrap"><canvas id="cpu-chart"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Severity Distribution</h3>
+      <div class="canvas-wrap"><canvas id="sev-chart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Bottom row: servers + alerts -->
+  <div class="bottom-row">
+    <!-- Servers table -->
+    <div class="table-card">
+      <h3>Server Status (top 20 by severity)</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Server</th><th>Region</th><th>CPU%</th><th>Mem%</th>
+            <th>Latency</th><th>Err%</th><th>Status</th><th>Score</th>
+          </tr>
+        </thead>
+        <tbody id="server-tbody">
+          <tr><td colspan="8" style="color:var(--muted);padding:20px">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Alerts panel -->
+    <div class="card" style="overflow:hidden">
+      <h3>Recent Alerts</h3>
+      <div class="alerts-list" id="alerts-list">
+        <div style="color:var(--muted);font-size:.8rem">No alerts yet…</div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+const API = window.location.origin.includes('localhost') || window.location.origin.includes('127.')
+  ? 'http://localhost:8000'
+  : '';   // same-origin via nginx
+
+// ── Charts setup ─────────────────────────────────────────────────────────────
+const cpuLabels = [];
+const cpuData   = [];
+const cpuCtx = document.getElementById('cpu-chart').getContext('2d');
+const cpuChart = new Chart(cpuCtx, {
+  type: 'line',
+  data: {
+    labels: cpuLabels,
+    datasets: [{
+      label: 'Avg CPU%',
+      data: cpuData,
+      borderColor: '#3b82f6',
+      backgroundColor: '#3b82f620',
+      fill: true,
+      tension: 0.4,
+      pointRadius: 2,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { ticks: { color: '#64748b', maxTicksLimit: 8 }, grid: { color: '#1f2d45' } },
+      y: { min: 0, max: 100, ticks: { color: '#64748b' }, grid: { color: '#1f2d45' } }
+    }
+  }
+});
+
+const sevCtx = document.getElementById('sev-chart').getContext('2d');
+const sevChart = new Chart(sevCtx, {
+  type: 'doughnut',
+  data: {
+    labels: ['Normal', 'Warning', 'Critical'],
+    datasets: [{ data: [0, 0, 0], backgroundColor: ['#22c55e', '#eab308', '#ef4444'], borderWidth: 0 }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'right', labels: { color: '#e2e8f0', padding: 14 } } },
+    cutout: '65%'
+  }
+});
+
+// ── Fetch & render ────────────────────────────────────────────────────────────
+async function fetchJSON(path) {
+  const r = await fetch(API + path);
+  if (!r.ok) throw new Error(r.status);
+  return r.json();
+}
+
+function timeLabel() {
+  return new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
+async function refreshSummary() {
+  const d = await fetchJSON('/dashboard/summary');
+  document.getElementById('kpi-active').textContent = d.active_servers ?? '—';
+  document.getElementById('kpi-cpu').textContent    = d.averages?.cpu?.toFixed(1) ?? '—';
+  document.getElementById('kpi-lat').textContent    = d.averages?.lat?.toFixed(0) ?? '—';
+  document.getElementById('kpi-mem').textContent    = d.averages?.mem?.toFixed(1) ?? '—';
+  document.getElementById('kpi-warn').textContent   = d.severity?.warning ?? 0;
+  document.getElementById('kpi-crit').textContent   = d.severity?.critical ?? 0;
+
+  // CPU chart
+  cpuLabels.push(timeLabel());
+  cpuData.push(d.averages?.cpu ?? 0);
+  if (cpuLabels.length > 20) { cpuLabels.shift(); cpuData.shift(); }
+  cpuChart.update();
+
+  // Severity donut
+  sevChart.data.datasets[0].data = [
+    d.severity?.normal ?? 0,
+    d.severity?.warning ?? 0,
+    d.severity?.critical ?? 0,
+  ];
+  sevChart.update();
+}
+
+async function refreshServers() {
+  const d = await fetchJSON('/dashboard/servers?limit=50');
+  const tbody = document.getElementById('server-tbody');
+  const servers = (d.servers || []).sort((a, b) => {
+    const sev = { critical: 2, warning: 1, normal: 0 };
+    return (sev[b.severity] ?? 0) - (sev[a.severity] ?? 0);
+  }).slice(0, 20);
+
+  if (!servers.length) {
+    tbody.innerHTML = '<tr><td colspan="8" style="color:var(--muted);padding:20px">No servers yet…</td></tr>';
+    return;
+  }
+  tbody.innerHTML = servers.map(s => `
+    <tr>
+      <td style="font-family:monospace;color:var(--accent)">${s.server_id}</td>
+      <td style="color:var(--muted)">${s.region ?? '—'}</td>
+      <td>${bar(s.cpu ?? s.cpu_usage, 'cpu')} ${(s.cpu ?? s.cpu_usage ?? 0).toFixed(1)}%</td>
+      <td>${bar(s.memory ?? s.memory_usage, 'mem')} ${(s.memory ?? s.memory_usage ?? 0).toFixed(1)}%</td>
+      <td>${(s.latency ?? s.latency_ms ?? 0).toFixed(0)} ms</td>
+      <td>${(s.error_rate ?? 0).toFixed(2)}</td>
+      <td><span class="badge ${s.severity}">${s.severity}</span></td>
+      <td style="color:var(--muted)">${(s.score ?? s.anomaly_score ?? 0).toFixed(2)}</td>
+    </tr>
+  `).join('');
+}
+
+function bar(val, cls) {
+  val = val ?? 0;
+  const pct = Math.min(100, val);
+  const colorCls = pct > 80 ? 'crit' : (pct > 60 ? 'warn' : cls);
+  return `<div class="bar-wrap" style="width:60px;display:inline-block;vertical-align:middle;margin-right:4px">
+    <div class="bar-fill ${colorCls}" style="width:${pct}%"></div></div>`;
+}
+
+async function refreshAlerts() {
+  const d = await fetchJSON('/alerts?limit=30');
+  const list = document.getElementById('alerts-list');
+  const alerts = d.alerts || [];
+  if (!alerts.length) {
+    list.innerHTML = '<div style="color:var(--muted);font-size:.8rem">No alerts yet…</div>';
+    return;
+  }
+  list.innerHTML = alerts.map(a => `
+    <div class="alert-item ${a.severity}">
+      <div style="flex:1">
+        <div class="alert-srv">${a.server_id}</div>
+        <div class="alert-msg">${a.message || ''}</div>
+      </div>
+      <div class="alert-time">${new Date(a.timestamp).toLocaleTimeString()}</div>
+    </div>
+  `).join('');
+}
+
+async function tick() {
+  try {
+    await Promise.all([refreshSummary(), refreshServers(), refreshAlerts()]);
+    document.getElementById('conn-status').textContent = 'Live';
+  } catch(e) {
+    document.getElementById('conn-status').textContent = 'Reconnecting…';
+  }
+}
+
+tick();
+setInterval(tick, 5000);
+</script>
+</body>
+</html>

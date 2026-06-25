@@ -1,0 +1,57 @@
+{
+  "id": null,
+  "uid": "monitor-main",
+  "title": "AI Monitoring Platform",
+  "tags": ["monitoring", "ai"],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "10s",
+  "panels": [
+    {
+      "id": 1, "type": "stat", "title": "Metrics Received (total)",
+      "gridPos": {"h": 4, "w": 4, "x": 0, "y": 0},
+      "targets": [{"expr": "metrics_received_total", "refId": "A"}],
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "value"}
+    },
+    {
+      "id": 2, "type": "stat", "title": "Active Servers",
+      "gridPos": {"h": 4, "w": 4, "x": 4, "y": 0},
+      "targets": [{"expr": "active_servers", "refId": "A"}],
+      "options": {"colorMode": "value"}
+    },
+    {
+      "id": 3, "type": "stat", "title": "Critical Anomalies",
+      "gridPos": {"h": 4, "w": 4, "x": 8, "y": 0},
+      "targets": [{"expr": "anomalies_detected_total{severity='critical'}", "refId": "A"}],
+      "options": {"colorMode": "background", "thresholds": {"steps": [{"color": "green","value": null},{"color": "red","value": 1}]}}
+    },
+    {
+      "id": 4, "type": "stat", "title": "Warning Anomalies",
+      "gridPos": {"h": 4, "w": 4, "x": 12, "y": 0},
+      "targets": [{"expr": "anomalies_detected_total{severity='warning'}", "refId": "A"}],
+      "options": {"colorMode": "background", "thresholds": {"steps": [{"color": "green","value": null},{"color": "yellow","value": 1}]}}
+    },
+    {
+      "id": 5, "type": "timeseries", "title": "API Request Latency (p50)",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 4},
+      "targets": [{"expr": "histogram_quantile(0.5, rate(api_request_duration_seconds_bucket[1m]))", "legendFormat": "p50", "refId": "A"},
+                  {"expr": "histogram_quantile(0.95, rate(api_request_duration_seconds_bucket[1m]))", "legendFormat": "p95", "refId": "B"}],
+      "options": {"legend": {"displayMode": "list"}}
+    },
+    {
+      "id": 6, "type": "timeseries", "title": "Cache Hit Rate",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 4},
+      "targets": [{"expr": "rate(cache_hits_total[1m]) / (rate(cache_hits_total[1m]) + rate(cache_misses_total[1m])) * 100", "legendFormat": "Hit %", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "percent", "min": 0, "max": 100}}
+    },
+    {
+      "id": 7, "type": "timeseries", "title": "Anomaly Detection Rate",
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 12},
+      "targets": [
+        {"expr": "rate(anomalies_detected_total{severity='critical'}[1m])*60", "legendFormat": "Critical/min", "refId": "A"},
+        {"expr": "rate(anomalies_detected_total{severity='warning'}[1m])*60", "legendFormat": "Warning/min", "refId": "B"}
+      ]
+    }
+  ]
+}
