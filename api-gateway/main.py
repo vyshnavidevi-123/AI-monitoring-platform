@@ -23,7 +23,7 @@ from starlette.responses import Response
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [API-GW] %(message)s")
 logger = logging.getLogger(__name__)
 
-# ─── Config ──────────────────────────────────────────────────────────────────
+#Config 
 REDIS_URL   = os.getenv("REDIS_URL", "redis://redis:6379")
 MYSQL_HOST  = os.getenv("MYSQL_HOST", "mysql")
 MYSQL_PORT  = int(os.getenv("MYSQL_PORT", "3306"))
@@ -32,7 +32,7 @@ MYSQL_PASS  = os.getenv("MYSQL_PASS", "monitor123")
 MYSQL_DB    = os.getenv("MYSQL_DB",   "monitoring")
 ML_SERVICE  = os.getenv("ML_SERVICE_URL", "http://ml-service:8001")
 
-# ─── Prometheus metrics ───────────────────────────────────────────────────────
+#Prometheus metrics 
 METRICS_RECEIVED   = Counter("metrics_received_total", "Total metric data points received")
 ANOMALIES_DETECTED = Counter("anomalies_detected_total", "Total anomalies", ["severity"])
 API_LATENCY        = Histogram("api_request_duration_seconds", "API request duration", ["endpoint"])
@@ -40,7 +40,7 @@ CACHE_HITS         = Counter("cache_hits_total", "Redis cache hits")
 CACHE_MISSES       = Counter("cache_misses_total", "Redis cache misses")
 ACTIVE_SERVERS     = Gauge("active_servers", "Number of servers reporting metrics")
 
-# ─── Global connections ───────────────────────────────────────────────────────
+#Global connections 
 redis_client: Optional[aioredis.Redis] = None
 db_pool: Optional[aiomysql.Pool] = None
 http_client: Optional[httpx.AsyncClient] = None
@@ -77,7 +77,7 @@ app = FastAPI(title="AI Monitoring Platform", version="1.0.0", lifespan=lifespan
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 
-# ─── DB Init ─────────────────────────────────────────────────────────────────
+#DB Init
 async def init_db():
     async with db_pool.acquire() as conn:
         async with conn.cursor() as cur:
@@ -118,7 +118,7 @@ async def init_db():
             """)
 
 
-# ─── Pydantic schemas ─────────────────────────────────────────────────────────
+#Pydantic schemas
 class Metric(BaseModel):
     server_id: str
     timestamp: str
@@ -136,7 +136,7 @@ class AlertAck(BaseModel):
     alert_id: int
 
 
-# ─── Helper: persist one metric ───────────────────────────────────────────────
+#Helper: persist one metric
 async def persist_metric(m: Metric, anomaly_score: float, severity: str):
     # MySQL
     async with db_pool.acquire() as conn:
@@ -176,7 +176,7 @@ async def persist_metric(m: Metric, anomaly_score: float, severity: str):
     await pipe.execute()
 
 
-# ─── Routes ───────────────────────────────────────────────────────────────────
+#Routes
 @app.get("/health")
 async def health():
     return {"status": "ok", "time": datetime.utcnow().isoformat()}
